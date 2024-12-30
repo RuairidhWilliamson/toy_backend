@@ -1,0 +1,94 @@
+[workspace]
+members = [
+  ".",
+  "api",
+  "migrator",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1.0.95"
+dotenvy = "0.15.7"
+serde_json = "1.0.134"
+serde = { version = "1.0.217", features = ["derive"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+secrecy = { version = "0.10.3", features = ["serde"] }
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+# unused_crate_dependencies = "warn"
+
+[workspace.lints.clippy]
+# Cargo
+# cargo_common_metadata = "warn"
+wildcard_dependencies = "warn"
+
+# Restriction
+allow_attributes = "warn"
+clone_on_ref_ptr = "warn"
+create_dir = "warn"
+dbg_macro = "warn"
+exit = "warn"
+string_to_string = "warn"
+undocumented_unsafe_blocks = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+unwrap_used = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+
+# Nursery
+nursery = { level = "warn", priority = -1 }
+missing_const_for_fn = "allow"
+significant_drop_tightening = "allow"
+suboptimal_flops = "allow"
+option_if_let_else = "allow"
+
+# Pedantic
+pedantic = { level = "warn", priority = -1 }
+cast_precision_loss = "allow"
+default_trait_access = "allow"
+missing_errors_doc = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+
+[package]
+name = "toy_backend"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+api.path = "api"
+migrator.path = "migrator"
+
+anyhow.workspace = true
+dotenvy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+secrecy.workspace = true
+
+argon2 = { version = "0.5.3", features = ["std"] }
+axum = "0.7.9"
+sqlx = { version = "0.8.2", default-features = false, features = ["macros", "runtime-tokio", "sqlite"] }
+tokio = { version = "1.42.0", features = ["full"] }
+rand = "0.8.5"
+thiserror = "2.0.9"
+tower-http = { version = "0.6.2", features = ["trace"] }
+
+[build-dependencies]
+dotenvy.workspace = true
+migrator.path = "migrator"
+
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+
+[lints]
+workspace = true
