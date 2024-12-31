@@ -93,3 +93,6 @@ opt-level = 3
 
 [lints]
 workspace = true
+
+[features]
+tls = []

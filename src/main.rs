@@ -45,17 +45,23 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http().on_failure(()))
         .with_state(state);
 
-    tracing::info!("listening on http://127.0.0.1:3000 and https://127.0.0.1:3001");
-    let https = SocketAddr::from(([127, 0, 0, 1], 3001));
     let http = SocketAddr::from(([127, 0, 0, 1], 3000));
-    tokio::spawn(http_redirect_server(https, http));
-    let app = app.into_make_service();
-    let tls_cert_path = std::env::var("TLS_CERT_PATH")?;
-    let tls_key_path = std::env::var("TLS_KEY_PATH")?;
-    let tls_config = RustlsConfig::from_pem_file(tls_cert_path, tls_key_path).await?;
-    axum_server::bind_rustls(https, tls_config)
-        .serve(app)
-        .await?;
+    if cfg!(feature = "tls") {
+        let https = SocketAddr::from(([127, 0, 0, 1], 3001));
+        tokio::spawn(http_redirect_server(https, http));
+        let tls_cert_path = std::env::var("TLS_CERT_PATH")?;
+        let tls_key_path = std::env::var("TLS_KEY_PATH")?;
+        let tls_config = RustlsConfig::from_pem_file(tls_cert_path, tls_key_path).await?;
+        tracing::info!("listening on http://127.0.0.1:3000 and https://127.0.0.1:3001");
+        axum_server::bind_rustls(https, tls_config)
+            .serve(app.into_make_service())
+            .await?;
+    } else {
+        tracing::info!("listening on http://127.0.0.1:3000");
+        axum_server::bind(http)
+            .serve(app.into_make_service())
+            .await?;
+    }
     Ok(())
 }
 
