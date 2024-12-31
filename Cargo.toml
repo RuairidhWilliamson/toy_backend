@@ -82,6 +82,7 @@ tokio = { version = "1.42.0", features = ["full"] }
 rand = "0.8.5"
 thiserror = "2.0.9"
 tower-http = { version = "0.6.2", features = ["trace"] }
+axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 
 [build-dependencies]
 dotenvy.workspace = true

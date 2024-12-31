@@ -1,5 +1,6 @@
 mod secrets;
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Context as _;
@@ -7,13 +8,15 @@ use argon2::{
     password_hash::SaltString, Argon2, Params, PasswordHash, PasswordHasher as _,
     PasswordVerifier as _, Version,
 };
-use axum::response::IntoResponse;
 use axum::{
-    extract::State,
-    http::StatusCode,
+    extract::{Host, State},
+    handler::HandlerWithoutStateExt as _,
+    http::{uri::Authority, StatusCode, Uri},
+    response::{IntoResponse, Redirect},
     routing::{get, post},
-    Json, Router,
+    BoxError, Json, Router,
 };
+use axum_server::tls_rustls::RustlsConfig;
 use secrecy::ExposeSecret as _;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 use tower_http::trace::TraceLayer;
@@ -26,7 +29,9 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let db_url = std::env::var("DATABASE_URL").context("DATABASE_URL not set")?;
-    migrator::Migrator::new_from_env()?.run()?;
+    migrator::Migrator::new_from_env()?
+        .run()
+        .context("apply migrations")?;
 
     let pool = SqlitePoolOptions::new().connect(&db_url).await?;
 
@@ -40,9 +45,58 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http().on_failure(()))
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    tracing::info!("listening on http://127.0.0.1:3000");
-    axum::serve(listener, app).await?;
+    tracing::info!("listening on http://127.0.0.1:3000 and https://127.0.0.1:3001");
+    let https = SocketAddr::from(([127, 0, 0, 1], 3001));
+    let http = SocketAddr::from(([127, 0, 0, 1], 3000));
+    tokio::spawn(http_redirect_server(https, http));
+    let app = app.into_make_service();
+    let tls_cert_path = std::env::var("TLS_CERT_PATH")?;
+    let tls_key_path = std::env::var("TLS_KEY_PATH")?;
+    let tls_config = RustlsConfig::from_pem_file(tls_cert_path, tls_key_path).await?;
+    axum_server::bind_rustls(https, tls_config)
+        .serve(app)
+        .await?;
+    Ok(())
+}
+
+async fn http_redirect_server(https: SocketAddr, http: SocketAddr) -> anyhow::Result<()> {
+    fn make_https(host: &str, uri: Uri, https_port: u16) -> Result<Uri, BoxError> {
+        let mut parts = uri.into_parts();
+
+        parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
+
+        if parts.path_and_query.is_none() {
+            parts.path_and_query = Some("/".parse()?);
+        }
+
+        let authority: Authority = host.parse()?;
+        let bare_host = match authority.port() {
+            Some(_) => {
+                let (host, _) = authority
+                    .as_str()
+                    .rsplit_once(':')
+                    .context("split port structure")?;
+                host
+            }
+            None => authority.as_str(),
+        };
+
+        parts.authority = Some(format!("{bare_host}:{https_port}").parse()?);
+
+        Ok(Uri::from_parts(parts)?)
+    }
+    let redirect = move |Host(host): Host, uri: Uri| async move {
+        match make_https(&host, uri, https.port()) {
+            Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
+            Err(error) => {
+                tracing::warn!(%error, "failed to convert URI to HTTPS");
+                Err(StatusCode::BAD_REQUEST)
+            }
+        }
+    };
+    axum_server::bind(http)
+        .serve(redirect.into_make_service())
+        .await?;
     Ok(())
 }
 
