@@ -12,5 +12,5 @@ serde.workspace = true
 serde_json.workspace = true
 secrecy.workspace = true
 
-arrayvec = { version = "0.7.6", features = ["serde"] }
+arrayvec = { version = "0.7.6", features = ["serde", "zeroize"] }
 schemars = { version = "0.8.21", features = ["arrayvec07"] }

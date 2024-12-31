@@ -20,4 +20,5 @@ FROM docker.io/alpine
 WORKDIR /app
 COPY --from=builder /app/target/release/toy_backend toy_backend
 COPY migrations migrations
+ENV RUST_LOG=info
 ENTRYPOINT ["./toy_backend"]
