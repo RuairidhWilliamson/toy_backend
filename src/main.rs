@@ -29,13 +29,14 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let db_url = std::env::var("DATABASE_URL").context("DATABASE_URL not set")?;
-    migrator::Migrator::new_from_env()?
+    migrator::Migrator::new_from_env()
+        .context("prepare migrations")?
         .run()
         .context("apply migrations")?;
 
     let pool = SqlitePoolOptions::new().connect(&db_url).await?;
 
-    let secrets = Arc::new(secrets::Secrets::load()?);
+    let secrets = Arc::new(secrets::Secrets::load().context("load secrets")?);
     let state = AppState { secrets, db: pool };
 
     let app = Router::new()

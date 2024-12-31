@@ -1,0 +1,7 @@
+/.gitignore
+/Dockerfile
+/secrets.json
+/target
+/dev_deb.sqlite3
+/generated
+/*.pem
