@@ -7,6 +7,6 @@ publish.workspace = true
 [dependencies]
 anyhow.workspace = true
 tracing.workspace = true
+sqlx.workspace = true
 
-rusqlite = { version = "0.32.1", features = ["bundled"] }
 rustc-stable-hash = "0.1.1"

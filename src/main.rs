@@ -18,7 +18,10 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 use secrecy::ExposeSecret as _;
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    ConnectOptions as _, SqlitePool,
+};
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
@@ -29,12 +32,15 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     let db_url = std::env::var("DATABASE_URL").context("DATABASE_URL not set")?;
+
+    let options = SqliteConnectOptions::from_url(&db_url.parse()?)?.create_if_missing(true);
+    let pool = SqlitePoolOptions::new().connect_with(options).await?;
+
     migrator::Migrator::new_from_env()
         .context("prepare migrations")?
-        .run()
+        .run(pool.acquire().await?.as_mut())
+        .await
         .context("apply migrations")?;
-
-    let pool = SqlitePoolOptions::new().connect(&db_url).await?;
 
     let secrets = Arc::new(secrets::Secrets::load().context("load secrets")?);
     let state = AppState { secrets, db: pool };
