@@ -1,12 +1,17 @@
 pub mod string;
 
 use arrayvec::ArrayString;
+use chrono::NaiveDateTime;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use string::SecretString;
 
-type Username = ArrayString<255>;
-type Password = SecretString<255>;
+pub type UserId = i64;
+pub type Username = ArrayString<80>;
+pub type Password = SecretString<80>;
+
+pub type SessionId = uuid::Uuid;
+pub type SessionToken = SecretString<256>;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct CreateUser {
@@ -16,7 +21,7 @@ pub struct CreateUser {
 
 #[derive(Serialize, JsonSchema)]
 pub struct User {
-    pub id: i64,
+    pub id: UserId,
     pub username: Username,
 }
 
@@ -28,6 +33,22 @@ pub struct LoginRequest {
 
 #[derive(Serialize, JsonSchema)]
 pub enum LoginResponse {
-    Success,
-    Failure,
+    Success { session: Session },
+    BadUsername,
+    BadPassword,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct Session {
+    pub id: SessionId,
+    #[serde(serialize_with = "crate::string::exposer")]
+    pub token: SessionToken,
+    pub expires_at: NaiveDateTime,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct MyProfile {
+    pub session_id: SessionId,
+    pub user_id: UserId,
+    pub username: Username,
 }

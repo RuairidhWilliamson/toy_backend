@@ -1,0 +1,12 @@
+[package]
+name = "test_client"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+rand.workspace = true
+ureq = { version = "2.12.1", features = ["json"] }
+
+[lints]
+workspace = true

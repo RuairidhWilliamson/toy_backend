@@ -3,23 +3,13 @@ members = [
   ".",
   "api",
   "migrator",
+  "test_client",
 ]
 
 [workspace.package]
 version = "0.0.0"
 edition = "2021"
 publish = false
-
-[workspace.dependencies]
-anyhow = "1.0.95"
-dotenvy = "0.15.7"
-serde_json = "1.0.134"
-serde = { version = "1.0.217", features = ["derive"] }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
-secrecy = { version = "0.10.3", features = ["serde"] }
-sqlx = { version = "0.8.2", default-features = false, features = ["macros", "runtime-tokio", "sqlite"] }
-tokio = { version = "1.42.0", features = ["full"] }
 
 [workspace.lints.rust]
 unsafe_code = "warn"
@@ -59,6 +49,21 @@ missing_errors_doc = "allow"
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
 
+[workspace.dependencies]
+anyhow = "1.0.95"
+dotenvy = "0.15.7"
+rand = "0.8.5"
+secrecy = { version = "0.10.3", features = ["serde"] }
+serde_json = "1.0.134"
+serde = { version = "1.0.217", features = ["derive"] }
+sqlx = { version = "0.8.2", default-features = false, features = ["macros", "runtime-tokio", "sqlite", "chrono", "uuid"] }
+thiserror = "2.0.9"
+tokio = { version = "1.42.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+uuid = { version = "1.11.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.39", features = ["serde"] }
+
 [package]
 name = "toy_backend"
 version.workspace = true
@@ -71,19 +76,22 @@ migrator.path = "migrator"
 
 anyhow.workspace = true
 dotenvy.workspace = true
+chrono.workspace = true
+rand.workspace = true
 secrecy.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 sqlx.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
+uuid.workspace = true
 
 argon2 = { version = "0.5.3", features = ["std"] }
 axum = "0.7.9"
 axum-server = { version = "0.7.1", features = ["tls-rustls"] }
-rand = "0.8.5"
-thiserror = "2.0.9"
+base64 = "0.22.1"
 tower-http = { version = "0.6.2", features = ["trace"] }
 
 [build-dependencies]
@@ -92,7 +100,9 @@ migrator.path = "migrator"
 dotenvy.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
-tracing-subscriber.workspace = true
+
+[profile.release]
+lto = "fat"
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3

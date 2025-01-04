@@ -7,7 +7,6 @@ async fn main() {
     if let Err(err) = dotenvy::dotenv() {
         eprintln!(".env not found: {err}");
     }
-    tracing_subscriber::fmt::init();
     let migrator = migrator::Migrator::new_from_env().unwrap();
     let db_url = std::env::var("DATABASE_URL").unwrap();
     println!(

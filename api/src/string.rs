@@ -6,10 +6,18 @@ use schemars::{
     JsonSchema,
 };
 use secrecy::{ExposeSecret, SecretBox};
-use serde::Deserialize;
+use serde::{Deserialize, Serializer};
 
 #[derive(Debug, Deserialize)]
 pub struct SecretString<const N: usize>(SecretBox<ArrayString<N>>);
+
+impl<const N: usize> SecretString<N> {
+    pub fn new(s: &str) -> Self {
+        let mut out = Box::new(ArrayString::<N>::new_const());
+        out.push_str(s);
+        Self(SecretBox::new(out))
+    }
+}
 
 impl<const N: usize> JsonSchema for SecretString<N> {
     fn schema_name() -> String {
@@ -34,4 +42,14 @@ impl<const N: usize> ExposeSecret<str> for SecretString<N> {
     fn expose_secret(&self) -> &str {
         self.0.expose_secret()
     }
+}
+
+pub fn exposer<const N: usize, S>(
+    string: &SecretString<N>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(string.expose_secret())
 }
