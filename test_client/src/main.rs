@@ -10,7 +10,7 @@ fn main() -> Result<(), ureq::Error> {
 
     let addr = "http://127.0.0.1:3000";
 
-    let suffix: u32 = rand::rngs::OsRng.gen();
+    let suffix: u32 = rand::rngs::OsRng.r#gen();
     let username = format!("test_client_{suffix}");
 
     // Test root path

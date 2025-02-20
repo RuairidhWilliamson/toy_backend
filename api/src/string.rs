@@ -28,7 +28,7 @@ impl<const N: usize> JsonSchema for SecretString<N> {
         Cow::Borrowed(concat!(module_path!(), "::SecretString"))
     }
 
-    fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(_gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
         SchemaObject {
             instance_type: Some(InstanceType::String.into()),
             format: None,
