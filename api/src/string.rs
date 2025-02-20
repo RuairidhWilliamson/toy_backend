@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use arrayvec::ArrayString;
 use schemars::{
-    schema::{InstanceType, SchemaObject},
     JsonSchema,
+    schema::{InstanceType, SchemaObject},
 };
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Serializer};

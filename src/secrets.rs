@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use secrecy::{zeroize::Zeroizing, SecretString};
+use secrecy::{SecretString, zeroize::Zeroizing};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

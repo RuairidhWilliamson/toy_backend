@@ -6,27 +6,26 @@ use std::sync::Arc;
 use anyhow::Context as _;
 use api::string::SecretString;
 use argon2::{
-    password_hash::SaltString, Argon2, Params, PasswordHash, PasswordHasher as _,
-    PasswordVerifier as _, Version,
+    Argon2, Params, PasswordHash, PasswordHasher as _, PasswordVerifier as _, Version,
+    password_hash::SaltString,
 };
 use axum::{
-    async_trait,
+    BoxError, Json, Router, async_trait,
     extract::{FromRequestParts, Host, State},
     handler::HandlerWithoutStateExt as _,
-    http::{header::AUTHORIZATION, request::Parts, uri::Authority, StatusCode, Uri},
+    http::{StatusCode, Uri, header::AUTHORIZATION, request::Parts, uri::Authority},
     response::{IntoResponse, Redirect},
     routing::{get, post},
-    BoxError, Json, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use base64::{prelude::BASE64_STANDARD, Engine as _};
+use base64::{Engine as _, prelude::BASE64_STANDARD};
 use chrono::Days;
 use rand::RngCore as _;
-use secrecy::{zeroize::Zeroizing, ExposeSecret as _};
+use secrecy::{ExposeSecret as _, zeroize::Zeroizing};
 use sqlx::{
+    ConnectOptions as _, SqlitePool,
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     types::chrono::Utc,
-    ConnectOptions as _, SqlitePool,
 };
 use tower_http::trace::TraceLayer;
 
@@ -76,9 +75,8 @@ async fn main() -> anyhow::Result<()> {
     } else {
         tracing::warn!("TLS disabled, data sent is not encrypted");
         tracing::info!("listening on http://{http_addr}");
-        axum_server::bind(http_addr)
-            .serve(app.into_make_service())
-            .await?;
+        let listener = tokio::net::TcpListener::bind(http_addr).await?;
+        axum::serve(listener, app).await?;
     }
     Ok(())
 }
@@ -87,7 +85,10 @@ fn get_env_var(key: &str) -> anyhow::Result<String> {
     std::env::var(key).with_context(|| format!("env var {key} not set"))
 }
 
-async fn http_redirect_server(https: SocketAddr, http: SocketAddr) -> anyhow::Result<()> {
+async fn http_redirect_server(
+    http_tls_addr: SocketAddr,
+    http_addr: SocketAddr,
+) -> anyhow::Result<()> {
     fn make_https(host: &str, uri: Uri, https_port: u16) -> Result<Uri, BoxError> {
         let mut parts = uri.into_parts();
 
@@ -114,7 +115,7 @@ async fn http_redirect_server(https: SocketAddr, http: SocketAddr) -> anyhow::Re
         Ok(Uri::from_parts(parts)?)
     }
     let redirect = move |Host(host): Host, uri: Uri| async move {
-        match make_https(&host, uri, https.port()) {
+        match make_https(&host, uri, http_tls_addr.port()) {
             Ok(uri) => Ok(Redirect::permanent(&uri.to_string())),
             Err(error) => {
                 tracing::warn!(%error, "failed to convert URI to HTTPS");
@@ -122,9 +123,8 @@ async fn http_redirect_server(https: SocketAddr, http: SocketAddr) -> anyhow::Re
             }
         }
     };
-    axum_server::bind(http)
-        .serve(redirect.into_make_service())
-        .await?;
+    let listener = tokio::net::TcpListener::bind(http_addr).await?;
+    axum::serve(listener, redirect.into_make_service()).await?;
     Ok(())
 }
 
@@ -300,11 +300,11 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         };
-        return Ok(Self {
+        Ok(Self {
             session_id: id,
             user_id: row.user_id,
             username,
-        });
+        })
     }
 }
 

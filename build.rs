@@ -1,6 +1,6 @@
 #![allow(clippy::print_stderr, clippy::unwrap_used)]
 
-use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions as _, Connection as _};
+use sqlx::{ConnectOptions as _, Connection as _, sqlite::SqliteConnectOptions};
 
 #[tokio::main]
 async fn main() {
