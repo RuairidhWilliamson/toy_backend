@@ -1,7 +1,7 @@
 mod secrets;
 
-use std::net::SocketAddr;
 use std::sync::Arc;
+use std::{borrow::Cow, net::SocketAddr};
 
 use anyhow::Context as _;
 use api::string::SecretString;
@@ -11,15 +11,15 @@ use argon2::{
 };
 use axum::{
     BoxError, Json, Router, async_trait,
-    extract::{FromRequestParts, Host, State},
+    extract::{FromRequestParts, Host, Path, State},
     handler::HandlerWithoutStateExt as _,
     http::{StatusCode, Uri, header::AUTHORIZATION, request::Parts, uri::Authority},
-    response::{IntoResponse, Redirect},
-    routing::{get, post},
+    response::{Html, IntoResponse, Redirect},
+    routing::{delete, get, post},
 };
 use axum_server::tls_rustls::RustlsConfig;
 use base64::{Engine as _, prelude::BASE64_STANDARD};
-use chrono::Days;
+use chrono::{Days, NaiveDateTime};
 use rand::RngCore as _;
 use secrecy::{ExposeSecret as _, zeroize::Zeroizing};
 use sqlx::{
@@ -50,13 +50,24 @@ async fn main() -> anyhow::Result<()> {
         .context("apply migrations")?;
 
     let secrets = Arc::new(secrets::Secrets::load().context("load secrets")?);
-    let state = AppState { secrets, db: pool };
+
+    let mut handlebars = handlebars::Handlebars::new();
+    handlebars.set_dev_mode(true);
+    handlebars.register_template_file("hello", "templates/hello.html")?;
+    let handlebars = Arc::new(handlebars);
+
+    let state = AppState {
+        secrets,
+        db: pool,
+        handlebars,
+    };
 
     let app = Router::new()
         .route("/", get(root))
-        .route("/users", post(create_user))
-        .route("/login", post(login))
-        .route("/me", get(me))
+        .route("/user/:user_id", delete(delete_user))
+        .route("/api/users", post(create_user))
+        .route("/api/login", post(login))
+        .route("/api/me", get(me))
         .layer(TraceLayer::new_for_http().on_failure(()))
         .with_state(state);
 
@@ -132,6 +143,7 @@ async fn http_redirect_server(
 struct AppState {
     secrets: Arc<secrets::Secrets>,
     db: SqlitePool,
+    handlebars: Arc<handlebars::Handlebars<'static>>,
 }
 
 impl AppState {
@@ -152,6 +164,10 @@ enum AppError {
     Sqlx(#[from] sqlx::Error),
     #[error("password hash error: {0}")]
     PasswordHash(#[from] argon2::password_hash::Error),
+    #[error("template error: {0}")]
+    Template(#[from] handlebars::RenderError),
+    #[error("other error: {0}")]
+    Other(Cow<'static, str>),
 }
 
 impl IntoResponse for AppError {
@@ -161,8 +177,46 @@ impl IntoResponse for AppError {
     }
 }
 
-async fn root() -> &'static str {
-    "Hello, World!"
+async fn root(State(state): State<AppState>) -> Result<Html<String>, AppError> {
+    #[derive(Debug, serde::Serialize)]
+    struct UserRow {
+        id: i64,
+        username: String,
+        created_at: NaiveDateTime,
+        deleted: bool,
+    }
+    let users = sqlx::query!("SELECT id, username, created_at, deleted FROM users")
+        .fetch_all(&state.db)
+        .await?;
+    let users: Vec<UserRow> = users
+        .into_iter()
+        .map(|r| UserRow {
+            id: r.id,
+            username: r.username,
+            created_at: r.created_at,
+            deleted: r.deleted != 0,
+        })
+        .collect();
+    Ok(Html(
+        state
+            .handlebars
+            .render("hello", &serde_json::json!({"users": users}))?,
+    ))
+}
+
+async fn delete_user(
+    Path(user_id): Path<i64>,
+    State(state): State<AppState>,
+) -> Result<Html<String>, AppError> {
+    if sqlx::query!("UPDATE users SET deleted=1 WHERE id=?", user_id)
+        .execute(&state.db)
+        .await?
+        .rows_affected()
+        == 0
+    {
+        return Err(AppError::Other(Cow::Borrowed("no rows affected")));
+    }
+    Ok(Html(String::from("<button disabled>User deleted</button>")))
 }
 
 async fn create_user(
@@ -175,10 +229,12 @@ async fn create_user(
         .hash_password(payload.password.expose_secret().as_bytes(), &salt)?
         .to_string();
     let username = payload.username.as_str();
+    let created_at = Utc::now().naive_utc();
     let row = sqlx::query!(
-        "INSERT INTO users (username, password_hash) VALUES (?, ?) RETURNING id",
+        "INSERT INTO users (username, password_hash, created_at, deleted) VALUES (?, ?, ?, 0) RETURNING id",
         username,
         password_hash,
+        created_at,
     )
     .fetch_one(&state.db)
     .await?;

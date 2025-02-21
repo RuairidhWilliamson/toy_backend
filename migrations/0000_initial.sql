@@ -2,7 +2,9 @@
 CREATE TABLE users (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(80) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL
+    password_hash VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL,
+    deleted INTEGER NOT NULL
 );
 
 CREATE TABLE sessions (

@@ -8,15 +8,10 @@ use rand::Rng as _;
 fn main() -> Result<(), ureq::Error> {
     let start = Instant::now();
 
-    let addr = "http://127.0.0.1:3000";
+    let addr = "http://127.0.0.1:3000/api";
 
     let suffix: u32 = rand::rngs::OsRng.r#gen();
     let username = format!("test_client_{suffix}");
-
-    // Test root path
-    let root_resp = ureq::get(addr).call()?;
-    assert_eq!(root_resp.status(), 200);
-    assert_eq!(root_resp.into_string()?, "Hello, World!");
 
     // Create user
     let user_resp = ureq::post(&format!("{addr}/users")).send_json(ureq::json!({
