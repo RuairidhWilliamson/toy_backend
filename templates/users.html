@@ -7,16 +7,22 @@
       background-color: #1e1e1e;
       color: #fff;
     }
+
+    a:visited {
+      color: #fff;
+    }
   </style>
 </head>
 
 <body>
+  <a href="/">Home</a>
   <h1>Users</h1>
   <table>
     <tr>
       <th>ID</th>
       <th>Username</th>
       <th>Create Time</th>
+      <th>Session Count</th>
       <th></th>
     </tr>
     {{#each users}}
@@ -24,6 +30,7 @@
       <td>{{this.id}}</td>
       <td>{{this.name}}</td>
       <td>{{this.create_time}}</td>
+      <td>{{this.session_count}}</td>
       {{#if this.deleted}}
       <td><button disabled>User deleted</button></td>
       {{else}}

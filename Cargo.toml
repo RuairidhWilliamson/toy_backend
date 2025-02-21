@@ -40,6 +40,7 @@ missing_const_for_fn = "allow"
 significant_drop_tightening = "allow"
 suboptimal_flops = "allow"
 option_if_let_else = "allow"
+needless_collect = "allow"
 
 # Pedantic
 pedantic = { level = "warn", priority = -1 }

@@ -53,7 +53,8 @@ async fn main() -> anyhow::Result<()> {
 
     let mut handlebars = handlebars::Handlebars::new();
     handlebars.set_dev_mode(true);
-    handlebars.register_template_file("hello", "templates/hello.html")?;
+    handlebars.register_template_file("index", "templates/index.html")?;
+    handlebars.register_template_file("users", "templates/users.html")?;
     let handlebars = Arc::new(handlebars);
 
     let state = AppState {
@@ -63,8 +64,9 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let app = Router::new()
-        .route("/", get(root))
-        .route("/user/:user_id", delete(delete_user))
+        .route("/", get(root_page))
+        .route("/users", get(users_page))
+        .route("/user/:user_id", delete(delete_user_page))
         .route("/api/users", post(create_user))
         .route("/api/login", post(login))
         .route("/api/me", get(me))
@@ -177,34 +179,30 @@ impl IntoResponse for AppError {
     }
 }
 
-async fn root(State(state): State<AppState>) -> Result<Html<String>, AppError> {
+async fn root_page(State(state): State<AppState>) -> Result<Html<String>, AppError> {
+    Ok(Html(state.handlebars.render("index", &())?))
+}
+
+async fn users_page(State(state): State<AppState>) -> Result<Html<String>, AppError> {
     #[derive(Debug, serde::Serialize)]
     struct UserRow {
         id: i64,
         name: String,
         create_time: NaiveDateTime,
         deleted: bool,
+        session_count: i64,
     }
-    let users = sqlx::query!("SELECT id, name, create_time, deleted FROM users")
+    let users = sqlx::query_as!(UserRow, "SELECT users.id, users.name, users.create_time, users.deleted, COUNT(sessions.id) as session_count FROM users LEFT JOIN sessions ON users.id = sessions.user GROUP BY users.id;")
         .fetch_all(&state.db)
         .await?;
-    let users: Vec<UserRow> = users
-        .into_iter()
-        .map(|r| UserRow {
-            id: r.id,
-            name: r.name,
-            create_time: r.create_time,
-            deleted: r.deleted != 0,
-        })
-        .collect();
     Ok(Html(
         state
             .handlebars
-            .render("hello", &serde_json::json!({"users": users}))?,
+            .render("users", &serde_json::json!({"users": users}))?,
     ))
 }
 
-async fn delete_user(
+async fn delete_user_page(
     Path(user_id): Path<i64>,
     State(state): State<AppState>,
 ) -> Result<Html<String>, AppError> {

@@ -4,7 +4,7 @@ CREATE TABLE users (
     name VARCHAR(80) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     create_time DATETIME NOT NULL,
-    deleted INTEGER NOT NULL
+    deleted BOOLEAN NOT NULL
 );
 
 CREATE TABLE sessions (
