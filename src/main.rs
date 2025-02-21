@@ -31,10 +31,11 @@ use tower_http::trace::TraceLayer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    if let Err(err) = dotenvy::dotenv() {
+    let dotenv_result = dotenvy::dotenv();
+    tracing_subscriber::fmt::init();
+    if let Err(err) = dotenv_result {
         tracing::error!(".env does not exist: {err}");
     }
-    tracing_subscriber::fmt::init();
 
     let db_url = get_env_var("DATABASE_URL")?;
 
@@ -49,19 +50,22 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("apply migrations")?;
 
-    let secrets = Arc::new(secrets::Secrets::load().context("load secrets")?);
+    let secrets = secrets::Secrets::load().context("load secrets")?;
 
     let mut handlebars = handlebars::Handlebars::new();
-    handlebars.set_dev_mode(true);
+    handlebars.set_dev_mode(
+        get_env_var("TEMPLATE_RELOAD")?
+            .parse()
+            .context("parse TEMPLATE_RELOAD")?,
+    );
     handlebars.register_template_file("index", "templates/index.html")?;
     handlebars.register_template_file("users", "templates/users.html")?;
-    let handlebars = Arc::new(handlebars);
 
-    let state = AppState {
+    let state = Arc::new(InternalAppState {
         secrets,
         db: pool,
         handlebars,
-    };
+    });
 
     let app = Router::new()
         .route("/", get(root_page))
@@ -141,14 +145,15 @@ async fn http_redirect_server(
     Ok(())
 }
 
-#[derive(Clone)]
-struct AppState {
-    secrets: Arc<secrets::Secrets>,
+type AppState = Arc<InternalAppState>;
+
+struct InternalAppState {
+    secrets: secrets::Secrets,
+    handlebars: handlebars::Handlebars<'static>,
     db: SqlitePool,
-    handlebars: Arc<handlebars::Handlebars<'static>>,
 }
 
-impl AppState {
+impl InternalAppState {
     fn password_hasher(&self) -> Argon2<'_> {
         Argon2::new_with_secret(
             self.secrets.password_pepper.expose_secret().as_bytes(),
