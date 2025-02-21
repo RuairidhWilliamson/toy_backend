@@ -16,14 +16,14 @@
     <tr>
       <th>ID</th>
       <th>Username</th>
-      <th>Created At</th>
+      <th>Create Time</th>
       <th></th>
     </tr>
     {{#each users}}
     <tr>
       <td>{{this.id}}</td>
-      <td>{{this.username}}</td>
-      <td>{{this.created_at}}</td>
+      <td>{{this.name}}</td>
+      <td>{{this.create_time}}</td>
       {{#if this.deleted}}
       <td><button disabled>User deleted</button></td>
       {{else}}

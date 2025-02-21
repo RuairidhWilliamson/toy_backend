@@ -181,19 +181,19 @@ async fn root(State(state): State<AppState>) -> Result<Html<String>, AppError> {
     #[derive(Debug, serde::Serialize)]
     struct UserRow {
         id: i64,
-        username: String,
-        created_at: NaiveDateTime,
+        name: String,
+        create_time: NaiveDateTime,
         deleted: bool,
     }
-    let users = sqlx::query!("SELECT id, username, created_at, deleted FROM users")
+    let users = sqlx::query!("SELECT id, name, create_time, deleted FROM users")
         .fetch_all(&state.db)
         .await?;
     let users: Vec<UserRow> = users
         .into_iter()
         .map(|r| UserRow {
             id: r.id,
-            username: r.username,
-            created_at: r.created_at,
+            name: r.name,
+            create_time: r.create_time,
             deleted: r.deleted != 0,
         })
         .collect();
@@ -228,13 +228,13 @@ async fn create_user(
         .password_hasher()
         .hash_password(payload.password.expose_secret().as_bytes(), &salt)?
         .to_string();
-    let username = payload.username.as_str();
-    let created_at = Utc::now().naive_utc();
+    let name = payload.username.as_str();
+    let create_time = Utc::now().naive_utc();
     let row = sqlx::query!(
-        "INSERT INTO users (username, password_hash, created_at, deleted) VALUES (?, ?, ?, 0) RETURNING id",
-        username,
+        "INSERT INTO users (name, password_hash, create_time, deleted) VALUES (?, ?, ?, 0) RETURNING id",
+        name,
         password_hash,
-        created_at,
+        create_time,
     )
     .fetch_one(&state.db)
     .await?;
@@ -249,13 +249,10 @@ async fn login(
     State(state): State<AppState>,
     Json(payload): Json<api::LoginRequest>,
 ) -> Result<Json<api::LoginResponse>, AppError> {
-    let username = payload.username.as_str();
-    let Some(user_row) = sqlx::query!(
-        "SELECT id, password_hash FROM users WHERE username=?",
-        username,
-    )
-    .fetch_optional(&state.db)
-    .await?
+    let name = payload.username.as_str();
+    let Some(user_row) = sqlx::query!("SELECT id, password_hash FROM users WHERE name=?", name)
+        .fetch_optional(&state.db)
+        .await?
     else {
         return Ok(Json(api::LoginResponse::BadUsername));
     };
@@ -279,22 +276,22 @@ async fn create_session(user_id: api::UserId, state: AppState) -> Result<api::Se
     let token = Zeroizing::new(BASE64_STANDARD.encode(&session_token_raw));
     let token = SecretString::new(&token);
     let exposed_session_token = token.expose_secret();
-    let created_at = Utc::now().naive_utc();
-    let expires_at = created_at + Days::new(14);
+    let create_time = Utc::now().naive_utc();
+    let expire_time = create_time + Days::new(14);
     sqlx::query!(
-        "INSERT INTO sessions (id, user, token, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO sessions (id, user, token, create_time, expire_time) VALUES (?, ?, ?, ?, ?)",
         id,
         user_id,
         exposed_session_token,
-        created_at,
-        expires_at,
+        create_time,
+        expire_time,
     )
     .execute(&state.db)
     .await?;
     Ok(api::Session {
         id,
         token,
-        expires_at,
+        expires_at: expire_time,
     })
 }
 
@@ -331,7 +328,7 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
             }
         };
         let row = match sqlx::query!(
-            "SELECT users.id as user_id, users.username, sessions.token, sessions.expires_at FROM sessions INNER JOIN users ON users.id = sessions.user WHERE sessions.id=?",
+            "SELECT users.id as user_id, users.name, sessions.token, sessions.expire_time FROM sessions INNER JOIN users ON users.id = sessions.user WHERE sessions.id=?",
             id
         )
         .fetch_optional(&state.db)
@@ -346,10 +343,13 @@ impl FromRequestParts<AppState> for AuthenticatedUser {
         let Some(row) = row else {
             return Err(StatusCode::UNAUTHORIZED);
         };
+        if row.expire_time < Utc::now().naive_utc() {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
         if row.token != token {
             return Err(StatusCode::UNAUTHORIZED);
         }
-        let username = match row.username.as_str().try_into() {
+        let username = match row.name.as_str().try_into() {
             Ok(username) => username,
             Err(err) => {
                 tracing::error!("username too long: {err:#}");
