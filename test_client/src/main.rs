@@ -11,7 +11,7 @@ fn main() -> Result<(), ureq::Error> {
     let addr = "http://127.0.0.1:3000/api";
 
     std::thread::scope(|s| {
-        let threads: Vec<_> = (0..10)
+        let threads: Vec<_> = (0..5)
             .map(|_| {
                 s.spawn(|| {
                     let suffix: u32 = rand::rngs::OsRng.r#gen();

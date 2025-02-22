@@ -1,21 +1,8 @@
-<html>
+{% extends "base.html" %}
 
-<head>
-  <script src="https://unpkg.com/htmx.org@2.0.0/dist/htmx.min.js"></script>
-  <style>
-    html {
-      background-color: #1e1e1e;
-      color: #fff;
-    }
+{% block title %}Home{% endblock title %}
 
-    a:visited {
-      color: #fff;
-    }
-  </style>
-</head>
-
-<body>
-  <a href="/users">Users</a>
-</body>
-
-</html>
+{% block content %}
+<div class="info-stat">{{ user_count }} user{{ user_count | pluralize }}</div>
+<div class="info-stat">{{ guild_count }} guild{{ guild_count | pluralize }}</div>
+{% endblock content %}

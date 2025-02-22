@@ -1,44 +1,36 @@
-<html>
+{% extends "base.html" %}
 
-<head>
-  <script src="https://unpkg.com/htmx.org@2.0.0/dist/htmx.min.js"></script>
-  <style>
-    html {
-      background-color: #1e1e1e;
-      color: #fff;
-    }
+{% block title %}Users{% endblock title %}
 
-    a:visited {
-      color: #fff;
-    }
-  </style>
-</head>
-
-<body>
-  <a href="/">Home</a>
-  <h1>Users</h1>
-  <table>
-    <tr>
-      <th>ID</th>
-      <th>Username</th>
-      <th>Create Time</th>
-      <th>Session Count</th>
-      <th></th>
-    </tr>
-    {{#each users}}
-    <tr>
-      <td>{{this.id}}</td>
-      <td>{{this.name}}</td>
-      <td>{{this.create_time}}</td>
-      <td>{{this.session_count}}</td>
-      {{#if this.deleted}}
-      <td><button disabled>User deleted</button></td>
-      {{else}}
-      <td><button hx-delete="/user/{{this.id}}" hx-swap="outerHTML">Delete</button></td>
-      {{/if}}
-    </tr>
-    {{/each}}
-  </table>
-</body>
-
-</html>
+{% block content %}
+<table>
+  <tr>
+    <th>ID</th>
+    <th>Username</th>
+    <th>Create Time</th>
+    <th>Session Count</th>
+    <th></th>
+  </tr>
+  {% for user in users %}
+  <tr>
+    <td>{{ user.id }}</td>
+    <td>{{ user.name }}</td>
+    <td>{{ user.create_time }}</td>
+    <td>{{ user.session_count }}</td>
+    {% if user.deleted %}
+    <td><button disabled>User deleted</button></td>
+    {% else %}
+    <td>
+      <button hx-delete="/user/{{ user.id }}" hx-swap="outerHTML"
+        hx-confirm="Are you sure you want to delete {{ user.name }}?">
+        Delete
+        <div class="spinner-container htmx-indicator">
+          <div class="spinner"></div>
+        </div>
+      </button>
+    </td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+</table>
+{% endblock content %}

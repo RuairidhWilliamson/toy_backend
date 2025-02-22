@@ -1,3 +1,4 @@
+mod pages;
 mod secrets;
 
 use std::sync::Arc;
@@ -11,15 +12,15 @@ use argon2::{
 };
 use axum::{
     BoxError, Json, Router, async_trait,
-    extract::{FromRequestParts, Host, Path, State},
+    extract::{FromRequestParts, Host, State},
     handler::HandlerWithoutStateExt as _,
     http::{StatusCode, Uri, header::AUTHORIZATION, request::Parts, uri::Authority},
-    response::{Html, IntoResponse, Redirect},
-    routing::{delete, get, post},
+    response::{IntoResponse, Redirect},
+    routing::{get, post},
 };
 use axum_server::tls_rustls::RustlsConfig;
 use base64::{Engine as _, prelude::BASE64_STANDARD};
-use chrono::{Days, NaiveDateTime};
+use chrono::Days;
 use rand::RngCore as _;
 use secrecy::{ExposeSecret as _, zeroize::Zeroizing};
 use sqlx::{
@@ -52,25 +53,16 @@ async fn main() -> anyhow::Result<()> {
 
     let secrets = secrets::Secrets::load().context("load secrets")?;
 
-    let mut handlebars = handlebars::Handlebars::new();
-    handlebars.set_dev_mode(
-        get_env_var("TEMPLATE_RELOAD")?
-            .parse()
-            .context("parse TEMPLATE_RELOAD")?,
-    );
-    handlebars.register_template_file("index", "templates/index.html")?;
-    handlebars.register_template_file("users", "templates/users.html")?;
+    let templates = tera::Tera::new("templates/**/*")?;
 
     let state = Arc::new(InternalAppState {
         secrets,
         db: pool,
-        handlebars,
+        templates,
     });
 
     let app = Router::new()
-        .route("/", get(root_page))
-        .route("/users", get(users_page))
-        .route("/user/:user_id", delete(delete_user_page))
+        .nest("/", pages::pages_router())
         .route("/api/users", post(create_user))
         .route("/api/login", post(login))
         .route("/api/me", get(me))
@@ -149,7 +141,7 @@ type AppState = Arc<InternalAppState>;
 
 struct InternalAppState {
     secrets: secrets::Secrets,
-    handlebars: handlebars::Handlebars<'static>,
+    templates: tera::Tera,
     db: SqlitePool,
 }
 
@@ -172,7 +164,7 @@ enum AppError {
     #[error("password hash error: {0}")]
     PasswordHash(#[from] argon2::password_hash::Error),
     #[error("template error: {0}")]
-    Template(#[from] handlebars::RenderError),
+    Template(#[from] tera::Error),
     #[error("other error: {0}")]
     Other(Cow<'static, str>),
 }
@@ -182,44 +174,6 @@ impl IntoResponse for AppError {
         tracing::error!("{self:#}");
         (StatusCode::INTERNAL_SERVER_ERROR, Json("an error occurred")).into_response()
     }
-}
-
-async fn root_page(State(state): State<AppState>) -> Result<Html<String>, AppError> {
-    Ok(Html(state.handlebars.render("index", &())?))
-}
-
-async fn users_page(State(state): State<AppState>) -> Result<Html<String>, AppError> {
-    #[derive(Debug, serde::Serialize)]
-    struct UserRow {
-        id: i64,
-        name: String,
-        create_time: NaiveDateTime,
-        deleted: bool,
-        session_count: i64,
-    }
-    let users = sqlx::query_as!(UserRow, "SELECT users.id, users.name, users.create_time, users.deleted, COUNT(sessions.id) as session_count FROM users LEFT JOIN sessions ON users.id = sessions.user GROUP BY users.id;")
-        .fetch_all(&state.db)
-        .await?;
-    Ok(Html(
-        state
-            .handlebars
-            .render("users", &serde_json::json!({"users": users}))?,
-    ))
-}
-
-async fn delete_user_page(
-    Path(user_id): Path<i64>,
-    State(state): State<AppState>,
-) -> Result<Html<String>, AppError> {
-    if sqlx::query!("UPDATE users SET deleted=1 WHERE id=?", user_id)
-        .execute(&state.db)
-        .await?
-        .rows_affected()
-        == 0
-    {
-        return Err(AppError::Other(Cow::Borrowed("no rows affected")));
-    }
-    Ok(Html(String::from("<button disabled>User deleted</button>")))
 }
 
 async fn create_user(
