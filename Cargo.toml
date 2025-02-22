@@ -52,6 +52,7 @@ must_use_candidate = "allow"
 
 [workspace.dependencies]
 anyhow = "1.0.95"
+chrono = { version = "0.4.39", features = ["serde"] }
 dotenvy = "0.15.7"
 rand = "0.8.5"
 secrecy = { version = "0.10.3", features = ["serde"] }
@@ -63,7 +64,6 @@ tokio = { version = "1.42.0", features = ["full"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 uuid = { version = "1.11.0", features = ["v4", "serde"] }
-chrono = { version = "0.4.39", features = ["serde"] }
 
 [package]
 name = "toy_backend"
@@ -93,8 +93,8 @@ argon2 = { version = "0.5.3", features = ["std"] }
 axum = "0.7.9"
 axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 base64 = "0.22.1"
-tower-http = { version = "0.6.2", features = ["trace"] }
 tera = "1.20.0"
+tower-http = { version = "0.6.2", features = ["trace"] }
 
 [build-dependencies]
 migrator.path = "migrator"
