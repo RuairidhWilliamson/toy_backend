@@ -2,6 +2,7 @@
 /Dockerfile
 /secrets.json
 /target
-/dev_deb.sqlite3
 /generated
+/docket-compose.yml
 /*.pem
+/*.sqlite3

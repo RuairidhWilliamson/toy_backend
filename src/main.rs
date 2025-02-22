@@ -1,6 +1,7 @@
 mod pages;
 mod secrets;
 
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::{borrow::Cow, net::SocketAddr};
 
@@ -35,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
     let dotenv_result = dotenvy::dotenv();
     tracing_subscriber::fmt::init();
     if let Err(err) = dotenv_result {
-        tracing::error!(".env does not exist: {err}");
+        tracing::warn!(".env does not exist: {err}");
     }
 
     let db_url = get_env_var("DATABASE_URL")?;
@@ -53,7 +54,8 @@ async fn main() -> anyhow::Result<()> {
 
     let secrets = secrets::Secrets::load().context("load secrets")?;
 
-    let templates = tera::Tera::new("templates/**/*")?;
+    let templates_dir = get_env_var("TEMPLATES_DIR")?;
+    let templates = tera::Tera::new(&format!("{templates_dir}/**/*"))?;
 
     let state = Arc::new(InternalAppState {
         secrets,
@@ -69,7 +71,14 @@ async fn main() -> anyhow::Result<()> {
         .layer(TraceLayer::new_for_http().on_failure(()))
         .with_state(state);
 
-    let http_addr: SocketAddr = get_env_var("HTTP_ADDR")?.parse()?;
+    let http_addr: SocketAddr = if let Ok(http_addr) = std::env::var("HTTP_ADDR") {
+        http_addr.parse()?
+    } else {
+        SocketAddr::new(
+            std::net::IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            get_env_var("PORT")?.parse()?,
+        )
+    };
 
     if cfg!(feature = "tls") {
         let http_tls_addr: SocketAddr = get_env_var("HTTP_TLS_ADDR")?.parse()?;
@@ -78,14 +87,25 @@ async fn main() -> anyhow::Result<()> {
         let tls_key_path = get_env_var("TLS_KEY_PATH")?;
         let tls_config = RustlsConfig::from_pem_file(tls_cert_path, tls_key_path).await?;
         tracing::info!("listening on http://{http_addr} and https://{http_tls_addr}");
+        let handle = axum_server::Handle::default();
+        {
+            let handle = handle.clone();
+            tokio::spawn(async move {
+                shutdown_signal().await;
+                handle.graceful_shutdown(Some(std::time::Duration::from_secs(10)));
+            });
+        }
         axum_server::bind_rustls(http_tls_addr, tls_config)
+            .handle(handle)
             .serve(app.into_make_service())
             .await?;
     } else {
         tracing::warn!("TLS disabled, data sent is not encrypted");
         tracing::info!("listening on http://{http_addr}");
         let listener = tokio::net::TcpListener::bind(http_addr).await?;
-        axum::serve(listener, app).await?;
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown_signal())
+            .await?;
     }
     Ok(())
 }
@@ -135,6 +155,33 @@ async fn http_redirect_server(
     let listener = tokio::net::TcpListener::bind(http_addr).await?;
     axum::serve(listener, redirect.into_make_service()).await?;
     Ok(())
+}
+
+#[expect(clippy::redundant_pub_crate)]
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {},
+        () = terminate => {},
+    }
+
+    tracing::info!("signal received, starting graceful shutdown");
 }
 
 type AppState = Arc<InternalAppState>;
