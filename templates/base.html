@@ -3,31 +3,8 @@
 
 <head>
   <script src="https://unpkg.com/htmx.org@2.0.0/dist/htmx.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
   <style>
-    html {
-      background-color: #1e1e1e;
-      color: #fff;
-    }
-
-    a,
-    a:active,
-    a:visited {
-      color: #fff;
-      text-decoration: none;
-    }
-
-    a:active {
-      color: #aaa;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    td {
-      padding: 0em 0.5em;
-    }
-
     .info-stat {
       display: inline-block;
       padding: 1em;
@@ -76,13 +53,15 @@
 </head>
 
 <body>
-  <div>
-    <a href="/">Home</a>
-    <a href="/users">Users</a>
-  </div>
-  <div>
+  <header>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/users">Users</a>
+    </nav>
+  </header>
+  <main>
     {% block content %}{% endblock content %}
-  </div>
+  </main>
 </body>
 
 </html>
