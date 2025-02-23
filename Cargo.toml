@@ -95,6 +95,8 @@ axum-server = { version = "0.7.1", features = ["tls-rustls"] }
 base64 = "0.22.1"
 tera = "1.20.0"
 tower-http = { version = "0.6.2", features = ["trace"] }
+tower = "0.5.2"
+futures = "0.3.31"
 
 [build-dependencies]
 migrator.path = "migrator"

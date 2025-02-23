@@ -1,5 +1,3 @@
-#![warn(clippy::unwrap_used)]
-
 use std::{
     ffi::OsStr,
     hash::Hasher,

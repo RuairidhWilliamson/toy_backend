@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}User{% endblock title %}
+
+{% block content %}
+<table>
+  <tr>
+    <td>Id</td>
+    <td>{{ user.id }}</td>
+  </tr>
+  <tr>
+    <td>Name</td>
+    <td>{{ user.name }}</td>
+  </tr>
+  <tr>
+    <td>Create Time</td>
+    <td>{{ user.create_time }}</td>
+  </tr>
+  <tr>
+    <td>Deleted</td>
+    <td>{{ user.deleted }}</td>
+  </tr>
+</table>
+{% endblock content %}

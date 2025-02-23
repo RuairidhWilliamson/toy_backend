@@ -8,11 +8,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-serde.workspace = true
-serde_json.workspace = true
-secrecy.workspace = true
-uuid.workspace = true
+anyhow.workspace = true
 chrono.workspace = true
+secrecy.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+uuid.workspace = true
 
 arrayvec = { version = "0.7.6", features = ["serde", "zeroize"] }
 schemars = { version = "0.8.21", features = ["arrayvec07", "uuid1", "chrono"] }

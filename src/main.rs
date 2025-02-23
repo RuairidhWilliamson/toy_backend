@@ -1,3 +1,4 @@
+mod no_cache;
 mod pages;
 mod secrets;
 
@@ -68,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/users", post(create_user))
         .route("/api/login", post(login))
         .route("/api/me", get(me))
+        .layer(no_cache::NoCacheLayer)
         .layer(TraceLayer::new_for_http().on_failure(()))
         .with_state(state);
 

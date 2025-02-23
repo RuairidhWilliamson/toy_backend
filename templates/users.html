@@ -9,7 +9,6 @@
     <th>Username</th>
     <th>Create Time</th>
     <th>Session Count</th>
-    <th></th>
   </tr>
   {% for user in users %}
   <tr>
@@ -17,6 +16,11 @@
     <td>{{ user.name }}</td>
     <td>{{ user.create_time }}</td>
     <td>{{ user.session_count }}</td>
+    <td>
+      <a href="/user/{{ user.id }}">
+        <button>View</button>
+      </a>
+    </td>
     {% if user.deleted %}
     <td><button disabled>User deleted</button></td>
     {% else %}
