@@ -23,7 +23,7 @@
       </a>
     </td>
     {% if user.deleted %}
-    <td><button disabled>User deleted</button></td>
+    <td><button disabled>Deleted</button></td>
     {% else %}
     <td>
       <button hx-delete="/user/{{ user.id }}" hx-swap="outerHTML"

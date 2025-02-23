@@ -79,5 +79,5 @@ async fn delete_user(
     {
         return Err(AppError::Other(Cow::Borrowed("no rows affected")));
     }
-    Ok(Html(String::from("<button disabled>User deleted</button>")))
+    Ok(Html(String::from("<button disabled>Deleted</button>")))
 }
