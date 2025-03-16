@@ -1,4 +1,4 @@
-use std::{borrow::Cow, time::Duration};
+use std::borrow::Cow;
 
 use axum::{
     Router,
@@ -70,7 +70,6 @@ async fn delete_user(
     Path(user_id): Path<i64>,
     State(state): State<AppState>,
 ) -> Result<Html<String>, AppError> {
-    tokio::time::sleep(Duration::from_secs(1)).await;
     if sqlx::query!("UPDATE users SET deleted=1 WHERE id=?", user_id)
         .execute(&state.db)
         .await?
