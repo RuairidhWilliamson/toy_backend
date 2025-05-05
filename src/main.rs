@@ -159,7 +159,6 @@ async fn http_redirect_server(
     Ok(())
 }
 
-#[expect(clippy::redundant_pub_crate)]
 async fn shutdown_signal() {
     let ctrl_c = async {
         tokio::signal::ctrl_c()
