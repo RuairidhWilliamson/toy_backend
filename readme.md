@@ -1,17 +1,24 @@
+An example web app written in rust.
+
 ## Run
+
 Run without or with TLS
+
 ```bash
 cargo r
 cargo r -F tls
 ```
 
 Run test test client
+
 ```bash
 cargo r -p test_client
 ```
 
 ## Docker
+
 You can use docker to build and run the backend
+
 ```bash
 docker build -t toy_backend .
 touch db.sqlite3
@@ -28,13 +35,16 @@ docker container run \
 ```
 
 ### Docker compose
+
 You can also use docker compose to build and run the backend
+
 ```bash
 touch db.sqlite3
 docker compose up
 ```
 
 ## Checks
+
 ```bash
 cargo fmt --check
 cargo clippy --workspace
